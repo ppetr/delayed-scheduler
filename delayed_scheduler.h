@@ -25,11 +25,26 @@
 #include "absl/time/time.h"
 #include "absl/types/optional.h"
 
+// Implements scheduling actions at specific times.
+//
+// Actions can be of an arbitrary type `T` that is copyable or movable.
+// By default the type is `absl::AnyInvocable<void() &&>` which represents
+// callback that can be run at most once.
+//
+// By design the class doesn't implement execution of scheduled actions.
+// Once their respective times are reached, actions become available through
+// `AwaitNextOrStop()` to be executed at the caller's discretion.
+//
+// Thread-safe.
 template <typename T = absl::AnyInvocable<void() &&>>
 class DelayedScheduler {
  public:
   DelayedScheduler() noexcept : queue_pushed_(false), running_(true) {}
 
+  // Schedules `callback` to be run at time `at`.
+  // Returns `true` if the callback was scheduled.
+  // Returns `false` if this scheduler has been stopped, in which case
+  // `callback` is immediately deleted.
   bool ScheduleAt(absl::Time at,
                   T callback) noexcept ABSL_LOCKS_EXCLUDED(lock_) {
     absl::MutexLock mutex(&lock_);
@@ -40,16 +55,33 @@ class DelayedScheduler {
     return running_;
   }
 
+  // Same as `ScheduleAt`, but schedules `callback` to be run `after` from now.
   bool ScheduleAfter(absl::Duration after,
                      T callback) noexcept ABSL_LOCKS_EXCLUDED(lock_) {
     return ScheduleAt(absl::Now() + after, std::move(callback));
   }
 
+  // Stops the scheduler. Once stopped, it won't schedule any further actions.
+  // Any pending or future call to `AwaitNextOrStop` will clear the queue of
+  // waiting actions and return `nullopt`.
   void Stop() noexcept ABSL_LOCKS_EXCLUDED(lock_) {
     absl::MutexLock mutex(&lock_);
     running_ = false;
   }
 
+  // Waits until time reaches the action with the least scheduled time and
+  // returns it. Any actions with scheduled time already in the past are
+  // returned immediately one by on.
+  //
+  // If scheduler has been `Stop()`-ed, returns immediately with `nullopt`.
+  // Commonly the caller will run this function within a dedicated thread in a
+  // loop similar to this one:
+  //
+  //   absl::optional<Action> action;
+  //   while ((action = scheduler.AwaitNextOrStop()).has_value()) {
+  //     // Run `action`.
+  //   }
+  //   // Exit the thread.
   absl::optional<T> AwaitNextOrStop() noexcept ABSL_LOCKS_EXCLUDED(lock_) {
     absl::MutexLock mutex(&lock_);
     while (running_) {
@@ -75,6 +107,7 @@ class DelayedScheduler {
     Entry(absl::Time at_, T callback_) noexcept
         : at(at_), callback(std::move(callback_)) {}
 
+    // Descending order by `at`.
     bool operator<(const Entry& other) const noexcept { return at > other.at; }
 
     absl::Time at;

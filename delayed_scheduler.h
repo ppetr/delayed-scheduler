@@ -28,9 +28,10 @@
 template <typename T = absl::AnyInvocable<void() &&>>
 class DelayedScheduler {
  public:
-  DelayedScheduler() : queue_pushed_(false), running_(true) {}
+  DelayedScheduler() noexcept : queue_pushed_(false), running_(true) {}
 
-  bool ScheduleAt(absl::Time at, T callback) ABSL_LOCKS_EXCLUDED(lock_) {
+  bool ScheduleAt(absl::Time at,
+                  T callback) noexcept ABSL_LOCKS_EXCLUDED(lock_) {
     absl::MutexLock mutex(&lock_);
     if (running_) {
       queue_.emplace(at, std::move(callback));
@@ -39,17 +40,17 @@ class DelayedScheduler {
     return running_;
   }
 
-  bool ScheduleAfter(absl::Duration after, T callback)
-      ABSL_LOCKS_EXCLUDED(lock_) {
+  bool ScheduleAfter(absl::Duration after,
+                     T callback) noexcept ABSL_LOCKS_EXCLUDED(lock_) {
     return ScheduleAt(absl::Now() + after, std::move(callback));
   }
 
-  void Stop() ABSL_LOCKS_EXCLUDED(lock_) {
+  void Stop() noexcept ABSL_LOCKS_EXCLUDED(lock_) {
     absl::MutexLock mutex(&lock_);
     running_ = false;
   }
 
-  absl::optional<T> AwaitNextOrStop() ABSL_LOCKS_EXCLUDED(lock_) {
+  absl::optional<T> AwaitNextOrStop() noexcept ABSL_LOCKS_EXCLUDED(lock_) {
     absl::MutexLock mutex(&lock_);
     while (running_) {
       const absl::Duration remaining = queue_.empty()
@@ -71,16 +72,16 @@ class DelayedScheduler {
 
  private:
   struct Entry {
-    Entry(absl::Time at_, T callback_)
+    Entry(absl::Time at_, T callback_) noexcept
         : at(at_), callback(std::move(callback_)) {}
 
-    bool operator<(const Entry& other) const { return at > other.at; }
+    bool operator<(const Entry& other) const noexcept { return at > other.at; }
 
     absl::Time at;
     T callback;
   };
 
-  bool PushedOrStopped() { return queue_pushed_ || !running_; }
+  bool PushedOrStopped() noexcept { return queue_pushed_ || !running_; }
 
   absl::Mutex lock_;
   std::priority_queue<Entry> queue_ ABSL_GUARDED_BY(lock_);
@@ -90,7 +91,7 @@ class DelayedScheduler {
 
 #if __cplusplus >= 201703L
 // https://en.cppreference.com/w/cpp/language/class_template_argument_deduction
-DelayedScheduler() -> DelayedScheduler<>;
+DelayedScheduler()->DelayedScheduler<>;
 #endif
 
 #endif  // _DELAYED_SCHEDULER_H

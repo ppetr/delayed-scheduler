@@ -32,7 +32,8 @@ TEST(DelayedSchedulerTest, Empty) {
 TEST(DelayedSchedulerTest, DeducedTemplateTypeCpp17) {
   DelayedScheduler scheduler;
   // Move-only lambda.
-  scheduler.ScheduleAfter(absl::ZeroDuration(), [ptr = absl::make_unique<int>()]() {});
+  scheduler.ScheduleAfter(absl::ZeroDuration(),
+                          [ptr = absl::make_unique<int>()]() {});
 }
 #endif
 

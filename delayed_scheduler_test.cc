@@ -39,7 +39,6 @@ TEST(DelayedSchedulerTest, DeducedTemplateTypeCpp17) {
 
 TEST(DelayedSchedulerTest, SchedulesInThePast) {
   DelayedScheduler<int> scheduler;
-  const absl::Time now = absl::Now();
   scheduler.ScheduleAfter(absl::Hours(-1), -1);
   EXPECT_EQ(scheduler.AwaitNextOrStop(), -1);
   scheduler.Stop();

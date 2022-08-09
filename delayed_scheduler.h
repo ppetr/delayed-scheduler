@@ -16,6 +16,7 @@
 #define _DELAYED_SCHEDULER_H
 
 #include <queue>
+#include <type_traits>
 #include <utility>
 
 #include "absl/base/thread_annotations.h"
@@ -25,7 +26,9 @@
 #include "absl/time/time.h"
 #include "absl/types/optional.h"
 
-// Implements scheduling actions at specific times.
+// Implements scheduling actions at specific times. Waiting for actions can be
+// performed by a single, dedicated thread calling `AwaitNextOrStop()`
+// repeatedly.
 //
 // Actions can be of an arbitrary type `T` that is copyable or movable.
 // By default the type is `absl::AnyInvocable<void() &&>` which represents
@@ -39,6 +42,10 @@
 template <typename T = absl::AnyInvocable<void() &&>>
 class DelayedScheduler {
  public:
+  static_assert(!std::is_reference<T>::value,
+                "T must not be a reference. Wrap it in std::reference_wrapper "
+                "if desired.");
+
   DelayedScheduler() noexcept : queue_pushed_(false), running_(true) {}
 
   // Schedules `callback` to be run at time `at`.
@@ -62,8 +69,7 @@ class DelayedScheduler {
   }
 
   // Stops the scheduler. Once stopped, it won't schedule any further actions.
-  // Any pending or future call to `AwaitNextOrStop` will clear the queue of
-  // waiting actions and return `nullopt`.
+  // See also `AwaitNextOrStop` below.
   void Stop() noexcept ABSL_LOCKS_EXCLUDED(lock_) {
     absl::MutexLock mutex(&lock_);
     running_ = false;
@@ -71,9 +77,11 @@ class DelayedScheduler {
 
   // Waits until time reaches the action with the least scheduled time and
   // returns it. Any actions with scheduled time already in the past are
-  // returned immediately one by on.
+  // returned immediately one by one ordered by their respective times.
   //
-  // If scheduler has been `Stop()`-ed, returns immediately with `nullopt`.
+  // If scheduler has been `Stop()`-ed, `nullopt` is returned immediately and
+  // any pending queued actions are destroyed.
+  //
   // Commonly the caller will run this function within a dedicated thread in a
   // loop similar to this one:
   //

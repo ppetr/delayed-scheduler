@@ -26,9 +26,50 @@ set(ABSL_PROPAGATE_CXX_STD ON CACHE BOOL "")
 
 project(delayed-scheduler CXX)
 
-add_subdirectory(abseil-cpp)
+include(FetchContent)
+function(FetchLibrary)
+    if(${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} GREATER_EQUAL 3.24)
+        # Look for local packages, otherwise download from the git repo.
+        list(SUBLIST ARGV 3 -1 other_names)
+        FetchContent_Declare(
+            ${ARGV0}
+            GIT_REPOSITORY ${ARGV1}
+            GIT_TAG        ${ARGV2}
+            FIND_PACKAGE_ARGS REQUIRED EXCLUDE_FROM_ALL NAMES ${ARGV0} ${other_names}
+            )
+    else()
+        FetchContent_Declare(
+            ${ARGV0}
+            GIT_REPOSITORY ${ARGV1}
+            GIT_TAG        ${ARGV2}
+            )
+    endif()
+endfunction()
 
-add_subdirectory(googletest EXCLUDE_FROM_ALL)
+# We need a recent version that includes `absl::AnyInvocable`.
+FetchContent_Declare(
+    absl
+    GIT_REPOSITORY https://github.com/abseil/abseil-cpp.git
+    GIT_TAG        8c0b94e793a66495e0b1f34a5eb26bd7dc672db0  # lts_2022_06_23
+    )
+
+FetchLibrary(
+    googletest
+    https://github.com/google/googletest.git
+    e2239ee6043f73722e7aa812a459f54a28552929  # release-1.11.0
+    GTest
+    )
+
+# For the benchmarks below be sure to enable optimizations, for example:
+#   cmake -DBENCHMARK_ENABLE_LTO=true -DCMAKE_BUILD_TYPE=Release
+# See https://github.com/google/benchmark#debug-vs-release.
+FetchLibrary(
+    benchmark
+    https://github.com/google/benchmark.git
+    db55c89f31385f8105f56ac8245a51777e94a628
+    )
+
+FetchContent_MakeAvailable(absl googletest benchmark)
 
 # Var-sized and ref-counted structures.
 

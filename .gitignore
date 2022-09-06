@@ -1,7 +1,13 @@
+
 build*/
 *.sw[op]
 *.orig
 
+# Rust
+delayed_scheduler
+*.rlib
+
+# C++
 # Prerequisites
 *.d
 

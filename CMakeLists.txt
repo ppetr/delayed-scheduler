@@ -80,5 +80,5 @@ target_include_directories(delayed_scheduler INTERFACE .)
 target_link_libraries(delayed_scheduler INTERFACE atomic absl::any_invocable absl::base absl::optional absl::synchronization absl::time)
 
 add_executable(delayed_scheduler_test delayed_scheduler_test.cc)
-target_link_libraries(delayed_scheduler_test delayed_scheduler absl::memory absl::optional absl::time gmock gtest_main)
+target_link_libraries(delayed_scheduler_test delayed_scheduler absl::memory absl::optional absl::time absl::utility gmock gtest_main)
 add_test(NAME delayed_scheduler_test COMMAND delayed_scheduler_test)

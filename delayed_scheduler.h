@@ -25,6 +25,7 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "absl/types/optional.h"
+#include "absl/utility/utility.h"
 
 // Implements scheduling actions at specific times. Waiting for actions can be
 // performed by a single, dedicated thread calling `AwaitNextOrStop()`

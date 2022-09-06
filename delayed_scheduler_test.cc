@@ -65,7 +65,7 @@ struct MockDestructor {
       : destructor_(std::move(destructor)) {}
   MockDestructor(MockDestructor&&) = default;
   MockDestructor& operator=(MockDestructor&& other) {
-    destructor_ = std::exchange(other.destructor_, nullptr);
+    destructor_ = absl::exchange(other.destructor_, nullptr);
     return *this;
   }
   ~MockDestructor() {
